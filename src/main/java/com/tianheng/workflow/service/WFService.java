@@ -20,7 +20,7 @@ public interface WFService {
     /**
      * 发布/移除 模型为流程定义
      */
-    boolean deploy(String modelId) throws IOException;
+    boolean publish(String modelId) throws IOException;
 
     /**
      * 启动流程

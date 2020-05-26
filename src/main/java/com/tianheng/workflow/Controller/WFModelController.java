@@ -40,10 +40,10 @@ public class WFModelController {
      * 发布/移除 模型为流程定义
      */
 
-    @PutMapping("/deploy/models/{modelId}")
-    public ResponseModel deploy(@PathVariable String modelId) {
+    @PutMapping("/publish/models/{modelId}")
+    public ResponseModel publish(@PathVariable String modelId) {
         try {
-            return ResponseModelFactory.OKWithData(wfService.deploy(modelId));
+            return ResponseModelFactory.OKWithData(wfService.publish(modelId));
         } catch (Exception e) {
             e.printStackTrace();
             logger.error(e.getMessage());
@@ -59,7 +59,7 @@ public class WFModelController {
     public ResponseModel startProcess(@PathVariable String deploymentId) {
         try {
             return ResponseModelFactory.OKWithData(wfService.startProcess(deploymentId));
-        }catch (Exception e){
+        } catch (Exception e) {
             return ResponseModelFactory.error(e.getMessage());
         }
 

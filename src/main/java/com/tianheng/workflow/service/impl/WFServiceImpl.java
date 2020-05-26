@@ -80,10 +80,10 @@ public class WFServiceImpl implements WFService {
     }
 
     @Override
-    public boolean deploy(String modelId) throws IOException {
+    public boolean publish(String modelId) throws IOException {
 
         if (StringUtils.isEmpty(modelId)) {
-            throw new ValidateException("modelId不能为空");
+            throw new ValidateException("the modelId cannot be empty");
         }
         //获取模型
         RepositoryService repositoryService = processEngine.getRepositoryService();
@@ -92,13 +92,13 @@ public class WFServiceImpl implements WFService {
             if (StringUtils.isBlank(modelData.getDeploymentId())) {//deploymentId不为空则移除发布的流程，否则发布流程
                 byte[] bytes = repositoryService.getModelEditorSource(modelData.getId());
                 if (bytes == null) {
-                    throw new ValidateException("模型数据为空，请先设计流程并成功保存，再进行发布。");
+                    throw new ValidateException("the model data is empty，Please design the process first and save it successfully，then publish 。");
                 }
                 JsonNode modelNode = new ObjectMapper().readTree(bytes);
 
                 BpmnModel model = new BpmnJsonConverter().convertToBpmnModel(modelNode);
                 if (model.getProcesses().size() == 0) {
-                    throw new ValidateException("数据模型不符要求，请至少设计一条主线流程。");
+                    throw new ValidateException(" the model Data does not meet the requirements，Please design at least one main flow。");
                 }
                 byte[] bpmnBytes = new BpmnXMLConverter().convertToXML(model);
 
@@ -118,7 +118,7 @@ public class WFServiceImpl implements WFService {
 
             }
         } else {
-            throw new ValidateException("模型不存在。");
+            throw new ValidateException("the model does not exit。");
         }
         return true;
     }
@@ -135,10 +135,10 @@ public class WFServiceImpl implements WFService {
                 ProcessInstance processInstance = processEngine.getRuntimeService().startProcessInstanceById(processDefinition.getId());
                 return processInstance.getId() + " : " + processInstance.getProcessDefinitionId();
             } else {
-                throw new ValidateException("流程未发布不能启动。");
+                throw new ValidateException("the process not published cannot be started。");
             }
         } else {
-            throw new ValidateException("模型不存在。");
+            throw new ValidateException("the model does not exit。");
         }
 
     }
