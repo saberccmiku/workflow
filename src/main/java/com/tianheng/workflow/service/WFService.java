@@ -1,5 +1,6 @@
 package com.tianheng.workflow.service;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import org.activiti.engine.repository.Model;
 
 import javax.servlet.http.HttpServletResponse;
@@ -15,7 +16,12 @@ public interface WFService {
     /**
      * 获取所有模型
      */
-    List<Model> selectModels();
+    List<Model> models();
+
+    /**
+     * 获取所有模型分页
+     */
+    IPage<Model> pageModels(int page, int size);
 
     /**
      * 发布/移除 模型为流程定义
@@ -25,10 +31,31 @@ public interface WFService {
     /**
      * 启动流程
      */
-    String startProcess(String deploymentId);
+    String startProcess(String deploymentId,String businessKey);
 
     /**
      * 提交任务
      */
     boolean completeTask(String processInstanceId);
+
+    /**
+     * 模型是否有正在执行的流程信息
+     *
+     * @param modelId 模型id
+     * @return 是否正在运行
+     */
+    boolean isRunning(String modelId);
+
+    /**
+     * 显示流程图
+     */
+    String processPic(String deploymentId) throws IOException;
+
+    /**
+     * 显示流程图及其高亮
+     *
+     * @param processInstanceId 流程实例id
+     */
+    String processDiagramPic(String processInstanceId) throws IOException;
+
 }
