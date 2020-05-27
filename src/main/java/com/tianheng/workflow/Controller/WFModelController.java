@@ -5,6 +5,7 @@ import com.tianheng.workflow.service.WFService;
 import com.tianhengyun.common.tang4jbase.support.RequestPage;
 import com.tianhengyun.common.tang4jbase.support.ResponseModel;
 import com.tianhengyun.common.tang4jbase.support.ResponseModelFactory;
+import org.activiti.engine.ProcessEngine;
 import org.activiti.engine.repository.Model;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,15 @@ public class WFModelController {
     public void create(HttpServletResponse response) throws IOException {
         wfService.createModel(response);
     }
+
+    /**
+     * 删除模型
+     */
+    @PostMapping("/del/{modelId}")
+    public ResponseModel create(@PathVariable String modelId) {
+        return ResponseModelFactory.OKWithData(wfService.delModel(modelId));
+    }
+
 
     /**
      * 获取所有模型
@@ -78,11 +88,15 @@ public class WFModelController {
 
     }
 
+    @Autowired
+    private ProcessEngine processEngine;
+
     /**
      * 提交任务
      */
     @RequestMapping("/completeTask")
     public ResponseModel completeTask(@RequestBody String processInstanceId) {
+        processEngine.getIdentityService().createGroupQuery().list();
         return ResponseModelFactory.OKWithData(wfService.completeTask(processInstanceId));
     }
 
@@ -90,8 +104,8 @@ public class WFModelController {
      * 测试接口
      */
     @GetMapping("/test/{modelId}")
-    public ResponseModel test(@PathVariable String modelId) {
-        return ResponseModelFactory.OKWithData(wfService.isRunning(modelId));
+    public ResponseModel test(@PathVariable String modelId) throws IOException {
+        return ResponseModelFactory.OKWithData(wfService.getModelAssignment(modelId));
     }
 
 

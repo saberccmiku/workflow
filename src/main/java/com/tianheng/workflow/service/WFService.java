@@ -1,6 +1,7 @@
 package com.tianheng.workflow.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.tianheng.workflow.entity.Assignment;
 import org.activiti.engine.repository.Model;
 
 import javax.servlet.http.HttpServletResponse;
@@ -12,6 +13,12 @@ public interface WFService {
      * 新建一个空模型
      */
     void createModel(HttpServletResponse response) throws IOException;
+
+    /**
+     * 新建一个空模型
+     */
+    boolean delModel(String modelId);
+
 
     /**
      * 获取所有模型
@@ -31,7 +38,7 @@ public interface WFService {
     /**
      * 启动流程
      */
-    String startProcess(String deploymentId,String businessKey);
+    String startProcess(String deploymentId, String businessKey) throws IOException;
 
     /**
      * 提交任务
@@ -57,5 +64,68 @@ public interface WFService {
      * @param processInstanceId 流程实例id
      */
     String processDiagramPic(String processInstanceId) throws IOException;
+
+    /**
+     * 回退
+     *
+     * @return 是否成功
+     */
+    boolean back();
+
+    /**
+     * 转交
+     *
+     * @return 是否成功
+     */
+    boolean transfer();
+
+    /**
+     * 添加角色
+     *
+     * @return 是否成功
+     */
+    boolean addRole();
+
+    /**
+     * 添加参与者
+     *
+     * @return 是否成功
+     */
+    boolean addUser();
+
+    /**
+     * 添加用户组
+     *
+     * @return 是否成功
+     */
+    boolean addGroup();
+
+    /**
+     * 导出流程xml配置
+     */
+    void exportProcessXml(String modelId, HttpServletResponse response) throws IOException;
+
+    /**
+     * 获取模型参与者
+     *
+     * @param modelId 模型id
+     * @return 参与者
+     * @throws IOException 异常
+     */
+    List<Assignment> getModelAssignment(String modelId) throws IOException;
+
+    /**
+     * 查询待办
+     *
+     * @return
+     */
+    List<String> selectTodo();
+
+    /**
+     * 查询已办
+     *
+     * @return
+     */
+    List<String> selectDone();
 
 }

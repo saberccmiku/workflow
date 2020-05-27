@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.tianheng.workflow.entity.Assignment;
 import com.tianheng.workflow.service.WFService;
 import com.tianhengyun.common.tang4jbase.exception.ValidateException;
 import org.activiti.bpmn.converter.BpmnXMLConverter;
@@ -13,7 +14,6 @@ import org.activiti.editor.constants.ModelDataJsonConstants;
 import org.activiti.editor.language.json.converter.BpmnJsonConverter;
 import org.activiti.engine.ProcessEngine;
 import org.activiti.engine.RepositoryService;
-import org.activiti.engine.RuntimeService;
 import org.activiti.engine.repository.Deployment;
 import org.activiti.engine.repository.Model;
 import org.activiti.engine.repository.ModelQuery;
@@ -23,17 +23,18 @@ import org.activiti.engine.runtime.ProcessInstance;
 import org.activiti.engine.task.Task;
 import org.activiti.image.ProcessDiagramGenerator;
 import org.activiti.image.impl.DefaultProcessDiagramGenerator;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tomcat.util.codec.binary.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 import javax.servlet.http.HttpServletResponse;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -85,6 +86,12 @@ public class WFServiceImpl implements WFService {
     }
 
     @Override
+    public boolean delModel(String modelId) {
+        processEngine.getRepositoryService().deleteModel(modelId);
+        return true;
+    }
+
+    @Override
     public List<Model> models() {
         RepositoryService repositoryService = processEngine.getRepositoryService();
         return repositoryService.createModelQuery().list();
@@ -121,6 +128,8 @@ public class WFServiceImpl implements WFService {
                 }
                 byte[] bpmnBytes = new BpmnXMLConverter().convertToXML(model);
 
+                //如果流程节点未配置参与者不允许启动流程
+                hasCompleteAssignment(modelId);
                 //发布流程
                 String processName = modelData.getName() + ".bpmn20.xml";
                 Deployment deployment = repositoryService.createDeployment()
@@ -143,17 +152,20 @@ public class WFServiceImpl implements WFService {
     }
 
     @Override
-    public String startProcess(String deploymentId, String businessKey) {
+    public String startProcess(String deploymentId, String businessKey) throws IOException {
+
         if (!StringUtils.isBlank(deploymentId) && !StringUtils.isBlank(businessKey)) {
             RepositoryService repositoryService = processEngine.getRepositoryService();
             //获取发布模型
             Deployment deployment = processEngine.getRepositoryService().createDeploymentQuery().deploymentId(deploymentId).singleResult();
             if (deployment != null) {
                 if (!StringUtils.isBlank(deployment.getId())) {
+                    Model model = repositoryService.createModelQuery().deploymentId(deploymentId).singleResult();
+                    //如果流程节点未配置参与者不允许启动流程
+                    hasCompleteAssignment(model.getId());
                     ProcessDefinition processDefinition = repositoryService.createProcessDefinitionQuery()
                             .deploymentId(deploymentId).singleResult();
                     ProcessInstance processInstance = processEngine.getRuntimeService().startProcessInstanceById(processDefinition.getId(), businessKey);
-                    RuntimeService runtimeService = processEngine.getRuntimeService();
 
                     return processInstance.getId() + " : " + processInstance.getProcessDefinitionId();
                 } else {
@@ -248,4 +260,166 @@ public class WFServiceImpl implements WFService {
         is.close();
         return encode;
     }
+
+    @Override
+    public boolean back() {
+        return false;
+    }
+
+    @Override
+    public boolean transfer() {
+        return false;
+    }
+
+    @Override
+    public boolean addRole() {
+        return false;
+    }
+
+    @Override
+    public boolean addUser() {
+        return false;
+    }
+
+    @Override
+    public boolean addGroup() {
+        return false;
+    }
+
+
+    /**
+     * 获取模型xml
+     *
+     * @param modelId 模型id
+     * @throws IOException IOException
+     */
+
+
+    @Override
+    public void exportProcessXml(String modelId, HttpServletResponse response) throws IOException {
+        ByteArrayInputStream in = null;
+        try {
+            RepositoryService repositoryService = processEngine.getRepositoryService();
+            processEngine.getIdentityService().createGroupQuery().list();
+            Model modelData = repositoryService.getModel(modelId);
+            BpmnJsonConverter jsonConverter = new BpmnJsonConverter();
+            //获取节点信息
+            byte[] arg0 = repositoryService.getModelEditorSource(modelData.getId());
+            JsonNode editorNode = new ObjectMapper().readTree(arg0);
+            JsonNode jsonNode = editorNode.get("activiti:candidateGroups");
+            //将节点信息转换为xml
+            BpmnModel bpmnModel = jsonConverter.convertToBpmnModel(editorNode);
+            BpmnXMLConverter xmlConverter = new BpmnXMLConverter();
+            byte[] bpmnBytes = xmlConverter.convertToXML(bpmnModel);
+
+            in = new ByteArrayInputStream(bpmnBytes);
+            IOUtils.copy(in, response.getOutputStream());
+//                String filename = bpmnModel.getMainProcess().getId() + ".bpmn20.xml";
+            String filename = modelData.getName() + ".bpmn20.xml";
+            response.setHeader("Content-Disposition", "attachment; filename=" + java.net.URLEncoder.encode(filename, "UTF-8"));
+            response.flushBuffer();
+        } catch (Exception e) {
+            PrintWriter out = null;
+            try {
+                out = response.getWriter();
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            } finally {
+                if (out != null) {
+                    out.close();
+                }
+            }
+            assert out != null;
+            out.write("未找到对应数据");
+            e.printStackTrace();
+        } finally {
+            if (in != null) {
+                in.close();
+            }
+        }
+    }
+
+    /**
+     * 获取模型节点参与者
+     *
+     * @param modelId 模型id
+     * @return List<Assignment>
+     * @throws IOException IOException
+     */
+
+    @Override
+    public List<Assignment> getModelAssignment(String modelId) throws IOException {
+
+        List<Assignment> assignments = new ArrayList<>();
+        List<String> candidateGroups;
+        List<String> candidateUsers;
+        Assignment assignment;
+        //获取各节点信息
+        byte[] modelEditorSourceExtra = processEngine.getRepositoryService().getModelEditorSource(modelId);
+        ObjectNode modelNode = (ObjectNode) new ObjectMapper().readTree(modelEditorSourceExtra);
+        JsonNode childShapes = modelNode.findValue("childShapes");
+        for (JsonNode childShape : childShapes) {
+            JsonNode properties = childShape.findValue("properties");
+            //
+            JsonNode userTaskAssignment = properties.findValue("usertaskassignment");
+            if (userTaskAssignment != null) {
+                JsonNode tempAssignment = userTaskAssignment.findValue("assignment");
+                JsonNode tempCandidateGroups = tempAssignment.findValue("candidateGroups");
+                JsonNode tempCandidateUsers = tempAssignment.findValue("candidateUsers");
+                JsonNode tempAssignee = tempAssignment.findValue("assignee");
+                assignment = new Assignment();
+                candidateGroups = new ArrayList<>();
+                candidateUsers = new ArrayList<>();
+
+                //执行人
+                String assignee = tempAssignee == null ? null : tempAssignee.asText();
+                //候选人组
+                if (tempCandidateGroups != null)
+                    for (JsonNode candidateGroup : tempCandidateGroups) {
+                        if (candidateGroup.findValue("value") != null) {
+                            candidateUsers.add(candidateGroup.findValue("value").asText());
+                        }
+
+                    }
+
+                //候选人
+                if (tempCandidateUsers != null)
+                    for (JsonNode candidateUser : tempCandidateUsers) {
+                        if (candidateUser.findValue("value") != null) {
+                            candidateUsers.add(candidateUser.findValue("value").asText());
+                        }
+
+                    }
+                assignment.setUserTask(properties.findValue("name").asText()).setAssignee(assignee)
+                        .setCandidateUsers(candidateUsers).setCandidateGroups(candidateGroups);
+                assignments.add(assignment);
+            }
+        }
+
+        return assignments;
+    }
+
+    @Override
+    public List<String> selectTodo() {
+
+        return null;
+    }
+
+    @Override
+    public List<String> selectDone() {
+        return null;
+    }
+
+    private void hasCompleteAssignment(String modelId) throws IOException {
+        //如果流程节点未配置参与者不允许启动流程
+        List<Assignment> modelAssignment = getModelAssignment(modelId);
+        for (Assignment assignment : modelAssignment) {
+            if (StringUtils.isBlank(assignment.getAssignee())
+                    && CollectionUtils.isEmpty(assignment.getCandidateGroups())
+                    && CollectionUtils.isEmpty(assignment.getCandidateGroups())) {
+                throw new ValidateException("some node are not added assignment");
+            }
+        }
+    }
+
 }
