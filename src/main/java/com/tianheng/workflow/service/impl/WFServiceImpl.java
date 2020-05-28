@@ -267,8 +267,21 @@ public class WFServiceImpl implements WFService {
     }
 
     @Override
-    public boolean transfer() {
-        return false;
+    public boolean transfer(String taskId, String userId) {
+        processEngine.getTaskService().setAssignee(taskId, userId);
+        return true;
+    }
+
+    @Override
+    public boolean delegate(String taskId, String userId) {
+        processEngine.getTaskService().delegateTask(taskId, userId);
+        return true;
+    }
+
+    @Override
+    public boolean resolveTask(String taskId) {
+        processEngine.getTaskService().resolveTask(taskId);
+        return true;
     }
 
     @Override

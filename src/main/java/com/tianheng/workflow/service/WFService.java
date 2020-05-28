@@ -74,10 +74,29 @@ public interface WFService {
 
     /**
      * 转交
+     * 直接将办理人assignee 换成别人，这时任务的拥有着不再是转办人，而是为空，相当与将任务转出。
      *
+     * @param taskId 任务id
+     * @param userId 被委派人id
      * @return 是否成功
      */
-    boolean transfer();
+    boolean transfer(String taskId, String userId);
+
+    /**
+     * 委派：是将任务节点分给其他人处理，等其他人处理好之后，委派任务会自动回到委派人的任务中
+     *
+     * @param taskId 任务id
+     * @param userId 被委派人id
+     */
+    boolean delegate(String taskId, String userId);
+
+    /**
+     * 被委派人办理任务后,回到委派人
+     *
+     * @param taskId taskId 任务id
+     */
+
+    boolean resolveTask(String taskId);
 
     /**
      * 添加角色
